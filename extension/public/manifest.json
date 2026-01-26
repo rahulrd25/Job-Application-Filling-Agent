@@ -6,7 +6,8 @@
     "permissions": [
         "activeTab",
         "scripting",
-        "storage"
+        "storage",
+        "webNavigation"
     ],
     "host_permissions": [
         "<all_urls>",
@@ -25,7 +26,8 @@
             ],
             "js": [
                 "src/content/index.js"
-            ]
+            ],
+            "all_frames": true
         }
     ]
 }
