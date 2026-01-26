@@ -1,0 +1,31 @@
+{
+    "manifest_version": 3,
+    "name": "JobFill Agent",
+    "version": "1.0.0",
+    "description": "AI-powered job application autofiller",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "<all_urls>",
+        "http://localhost:8000/*",
+        "https://*.greenhouse.io/*",
+        "https://*.lever.co/*",
+        "https://*.workday.com/*"
+    ],
+    "action": {
+        "default_popup": "index.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "src/content/index.js"
+            ]
+        }
+    ]
+}

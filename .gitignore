@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+backend/.env
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Project Specific
+backend/data/users/*
+!backend/data/users/.gitkeep
+backend/data/profile.json
+backend/data/resumes/*
+
+# OS
+.DS_Store
+Thumbs.db
