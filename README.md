@@ -1,78 +1,76 @@
-# JobFill Pro: Agentic Job Application Assistant
+# JobFill Pro: Intelligent Job Application Agent
 
-JobFill Pro is an intelligent browser extension designed to automate the repetitive aspects of job applications. Utilizing LLMs (Large Language Models) via the Groq API, the system contextually parses job descriptions and generates technical, professional responses tailored to a user's specific experience.
+JobFill Pro is a high-performance browser extension and backend system designed to eliminate the friction of job applications. It combines **deterministic business logic** for standard data with **Llama 3.3 Intelligence** for creative, human-sounding cover letters and application essays.
 
-The system features a multi-tenant architecture with agentic CV parsing, allowing users to initialize their profiles by simply uploading a PDF resume.
+## 🚀 Key Features
 
-## Core Features
+*   **Universal Form Detection**: Built-in "Teleport" engine that scans complex web structures, including **cross-origin iframes** (Greenhouse, Lever, Workday) and accessibility-first elements (`aria-label`, `aria-labelledby`).
+*   **Hybrid Intelligence Agent**:
+    *   **Deterministic Matching**: 100% accuracy for factual data (Phone, Email, LinkedIn, Work Authorization) using stabilized keyword heuristics.
+    *   **Groq-Powered Creativity**: Auto-generates tailored responses for "Why this company?", "Tell us about your experience," and Cover Letters using Groq's low-latency Llama-3.3-70B model.
+*   **Zero AI-Slop Philosophy**: The AI agent is strictly tuned to avoid corporate jargon, buzzwords, and "ChatGPT-isms," producing direct, grounded, and human-to-human responses.
+*   **Multi-tenant Airtable Integration**: Secure, cloud-synced profile management utilizing Airtable as a robust backend.
+*   **Cyber-Yellow Pro UI**: A high-productivity, high-contrast dashboard with dynamic resizing (popups automatically expand to 500px for questionnaire sessions).
 
-*   **Agentic CV Onboarding**: Automatic extraction of professional experience, skills, and contact details from PDF resumes using Llama-3-70B.
-*   **Contextual Autofill**: Real-time analysis of job boards to identify company names, roles, and application requirements.
-*   **Intelligent Response Generation**: Technical, first-person answers for custom application questions, generated without AI artifacts or placeholders.
-*   **Privacy-First Architecture**: Localized user data storage with support for multi-user browser environments.
-*   **Auto-Consent**: Automated detection and verification of privacy and GDPR compliance checkboxes.
+## 🏗️ Technical Architecture
 
-## System Architecture
+### 1. Backend (Python/FastAPI)
+Acts as the "Central Brain" of the system:
+- **Field Matcher**: A prioritized keyword engine that resolves form field intents.
+- **Intelligence Agent**: Orchestrates LLM calls to Groq with sophisticated system prompting to ensure human-like tone and JD matching.
+- **Airtable Client**: Manages the EAV (Entity-Attribute-Value) storage schema for user profiles.
 
-### Backend (Python/FastAPI)
-The backend acts as the orchestration layer between the browser extension and the LLM. It handles:
-*   PDF text extraction and structured parsing.
-*   User session management.
-*   Prompt engineering and model fallback logic (Llama 3.3 70B & 3.1 8B).
+### 2. Extension (React/TypeScript/Vite)
+The "Eyes and Hands" in the browser:
+- **Scripting Engine**: Uses `chrome.scripting` to execute synchronous scans across every frame in the browser tab.
+- **Dynamic Popup Manager**: React-based UI that handles state transitions between the dashboard and complex onboarding questionnaires.
 
-### Frontend (React/TypeScript/Vite)
-A compact browser extension built with modern UI principles:
-*   A Cyber-Yellow high-contrast theme for engineering professionality.
-*   Content scripts for DOM manipulation and form discovery.
-*   Vite-optimized production builds.
-
-## Installation & Setup
+## 🛠️ Installation & Setup
 
 ### Prerequisites
-*   Python 3.10+
+*   Python 3.10+ (Managed with `uv`)
 *   Node.js 18+
-*   Groq API Key (Obtainable at [console.groq.com](https://console.groq.com))
+*   Groq API Key
+*   Airtable Base & API Key
 
-### 1. Backend Configuration
-Navigate to the backend directory and set up the environment:
+### 1. Backend Setup
 ```bash
 cd backend
+# Install dependencies using uv
 uv venv
-source .venv/bin/activate  # On macOS/Linux
+source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-Create a `.env` file in the `backend` directory:
+Create a `.env` file in `/backend`:
 ```env
-GROQ_API_KEY=your_api_key_here
+GROQ_API_KEY=your_groq_key
+AIRTABLE_API_KEY=your_pat_token
+AIRTABLE_BASE_ID=your_base_id
+AIRTABLE_TABLE_NAME=jobfilling_Data
 ```
 
-Start the API server:
-```bash
-uv run uvicorn app.main:app --reload
-```
+### 2. Airtable Setup
+Follow the [Detailed Airtable Guide](./AIRTABLE_SETUP.md) to configure your columns.
 
-### 2. Extension Compilation
-Navigate to the extension directory and build the production assets:
+### 3. Extension build
 ```bash
 cd extension
 npm install
 npm run build
 ```
 
-### 3. Chrome Installation
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Enable "Developer mode" in the top-right corner.
-3. Click "Load unpacked".
-4. Select the `extension/dist` folder from this repository.
+### 4. Chrome Installation
+1. Go to `chrome://extensions/`.
+2. Enable "Developer mode".
+3. Click "Load unpacked" and select the `extension/dist` folder.
 
-## Usage Workflow
+## 📖 Usage Guide
 
-1.  **Onboarding**: Click the JobFill Pro icon in your toolbar. Upload your PDF resume to initialize your profile.
-2.  **Form Discovery**: Navigate to a job application page (e.g., Greenhouse, Lever, etc.).
-3.  **Scan Interface**: Click the "Scan Page" button to identify input fields and company context.
-4.  **Execute Autofill**: Click "Auto Fill Application". The agent will populate all standard details and generate responses for complex questions.
-5.  **Manual Verification**: Review the generated content and manually attach your CV to the application.
+1.  **Setup Profile**: Click the extension icon and follow the questionnaire. Fill out the **🚀 Experience & Pitch** section—this is the "source of truth" the AI uses to write your cover letters.
+2.  **Scan \& Match**: Navigate to any job application. Click **Scan Application**. The agent will identify all fields, even those hidden in iframes.
+3.  **Fill**: Click **Fill Application**. Standard data is mapped instantly, and creative fields are generated by Groq in real-time.
+4.  **Review**: Final human review is always recommended before submission.
 
-## Professional Disclaimer
-This tool is intended to assist in the application process. Users should always review AI-generated responses for accuracy and relevance before submitting an application.
+## ⚖️ License & Disclaimer
+This tool is for educational and utility purposes. Use responsibly. Automated job applications should respect the terms of service of the respective platforms.

@@ -46,6 +46,7 @@ Click the **+** button or rename existing columns to create these 5 columns:
   - `screening`
   - `self_id`
   - `accessibility`
+  - `pitch`
 
 #### Column 3: `question_key`
 - **Type**: Single line text
