@@ -1,78 +1,65 @@
-# JobFill Pro: Agentic Job Application Assistant
+# JobFill Pro
 
-JobFill Pro is an intelligent browser extension designed to automate the repetitive aspects of job applications. Utilizing LLMs (Large Language Models) via the Groq API, the system contextually parses job descriptions and generates technical, professional responses tailored to a user's specific experience.
+JobFill Pro is a browser extension and backend system for automating job application forms. It uses keyword matching for standard fields and Llama 3.3 for writing long-form responses like cover letters.
 
-The system features a multi-tenant architecture with agentic CV parsing, allowing users to initialize their profiles by simply uploading a PDF resume.
+## Features
 
-## Core Features
+*   Form Detection: Scans standard inputs and cross-origin iframes (Greenhouse, Lever, Workday) using the Chrome Scripting API.
+*   Hybrid Matching: Uses a prioritized keyword engine for factual data (Phone, Email, LinkedIn) and LLM generation for descriptive questions.
+*   Plain English AI: Responses are tuned to avoid AI buzzwords and corporate jargon.
+*   Airtable Sync: Stores user profile data in Airtable for persistence.
+*   Dynamic UI: Resizable extension popup that expands when filling the profile questionnaire.
 
-*   **Agentic CV Onboarding**: Automatic extraction of professional experience, skills, and contact details from PDF resumes using Llama-3-70B.
-*   **Contextual Autofill**: Real-time analysis of job boards to identify company names, roles, and application requirements.
-*   **Intelligent Response Generation**: Technical, first-person answers for custom application questions, generated without AI artifacts or placeholders.
-*   **Privacy-First Architecture**: Localized user data storage with support for multi-user browser environments.
-*   **Auto-Consent**: Automated detection and verification of privacy and GDPR compliance checkboxes.
-
-## System Architecture
+## Architecture
 
 ### Backend (Python/FastAPI)
-The backend acts as the orchestration layer between the browser extension and the LLM. It handles:
-*   PDF text extraction and structured parsing.
-*   User session management.
-*   Prompt engineering and model fallback logic (Llama 3.3 70B & 3.1 8B).
+- Field Matcher: Keyword-based resolution of form field intents.
+- Intelligence Agent: Generates text for subjective questions using Groq.
+- Airtable Client: Handles data storage and retrieval.
 
-### Frontend (React/TypeScript/Vite)
-A compact browser extension built with modern UI principles:
-*   A Cyber-Yellow high-contrast theme for engineering professionality.
-*   Content scripts for DOM manipulation and form discovery.
-*   Vite-optimized production builds.
+### Extension (React/TypeScript)
+- Scripting: Injects scanning logic into all frames on the active tab.
+- Dashboard: Interface for scanning and triggers for the autofill process.
 
-## Installation & Setup
+## Installation
 
 ### Prerequisites
 *   Python 3.10+
 *   Node.js 18+
-*   Groq API Key (Obtainable at [console.groq.com](https://console.groq.com))
+*   Groq API Key
+*   Airtable Base and API Key
 
-### 1. Backend Configuration
-Navigate to the backend directory and set up the environment:
+### 1. Backend
 ```bash
 cd backend
 uv venv
-source .venv/bin/activate  # On macOS/Linux
+source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-Create a `.env` file in the `backend` directory:
+Create a `.env` file in the backend directory:
 ```env
-GROQ_API_KEY=your_api_key_here
+GROQ_API_KEY=your_key
+AIRTABLE_API_KEY=your_token
+AIRTABLE_BASE_ID=your_id
+AIRTABLE_TABLE_NAME=jobfilling_Data
 ```
 
-Start the API server:
-```bash
-uv run uvicorn app.main:app --reload
-```
-
-### 2. Extension Compilation
-Navigate to the extension directory and build the production assets:
+### 2. Extension
 ```bash
 cd extension
 npm install
 npm run build
 ```
 
-### 3. Chrome Installation
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Enable "Developer mode" in the top-right corner.
-3. Click "Load unpacked".
-4. Select the `extension/dist` folder from this repository.
+### 3. Load Extension
+1. Open `chrome://extensions/`
+2. Enable Developer mode.
+3. Click "Load unpacked" and select the `extension/dist` folder.
 
-## Usage Workflow
+## Usage
 
-1.  **Onboarding**: Click the JobFill Pro icon in your toolbar. Upload your PDF resume to initialize your profile.
-2.  **Form Discovery**: Navigate to a job application page (e.g., Greenhouse, Lever, etc.).
-3.  **Scan Interface**: Click the "Scan Page" button to identify input fields and company context.
-4.  **Execute Autofill**: Click "Auto Fill Application". The agent will populate all standard details and generate responses for complex questions.
-5.  **Manual Verification**: Review the generated content and manually attach your CV to the application.
-
-## Professional Disclaimer
-This tool is intended to assist in the application process. Users should always review AI-generated responses for accuracy and relevance before submitting an application.
+1. Setup: Open the extension and complete the profile questionnaire. Provide details in the Pitch section to give the LLM context for writing.
+2. Scan: Navigate to a job application and click Scan Application.
+3. Fill: Click Fill Application. Factual fields are matched directly; creative fields are generated via Groq.
+4. Review: Verify all fields before submitting.
