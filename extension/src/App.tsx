@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import Questionnaire from './components/Questionnaire'
 
 interface FormField {
+  id: string;
   name: string;
   label: string;
   type: string;
   placeholder: string;
   context: string;
+  options?: string[];
   jobTitle?: string;
   companyName?: string;
 }
@@ -14,171 +17,265 @@ interface FormField {
 function App() {
   const [fields, setFields] = useState<FormField[]>([])
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState<string>('System Ready')
+  const [status, setStatus] = useState('Ready to fill applications')
   const [backendUrl] = useState('http://localhost:8000')
-  const [onboarding, setOnboarding] = useState(false)
-  const [userId, setUserId] = useState<string | null>(localStorage.getItem('job_fill_user_id'))
-  const [profile, setProfile] = useState<any>(null)
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false)
+  const [hasProfile, setHasProfile] = useState(false)
+  const [userId] = useState<string>(() => {
+    let id = localStorage.getItem('jobfill_user_id')
+    if (!id) {
+      id = 'user_' + Math.random().toString(36).substr(2, 9)
+      localStorage.setItem('jobfill_user_id', id)
+    }
+    return id
+  })
 
   useEffect(() => {
-    if (!userId) {
-      const newId = 'user_' + Math.random().toString(36).substr(2, 9);
-      setUserId(newId);
-      localStorage.setItem('job_fill_user_id', newId);
-    }
+    checkProfile();
   }, []);
 
-  useEffect(() => {
-    if (userId) {
-      fetch(`${backendUrl}/profile`, {
-        headers: { 'x-user-id': userId }
-      })
-        .then(res => res.json())
-        .then(data => {
-          setProfile(data);
-          setOnboarding(false);
-        })
-        .catch(() => setOnboarding(true));
-    }
-  }, [userId]);
-
-  const handleCvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-
-    setLoading(true);
-    setStatus('Analyzing Document...');
-    const formData = new FormData();
-    formData.append('file', file);
-
+  const checkProfile = async () => {
     try {
-      const res = await fetch(`${backendUrl}/onboard/parse-cv`, {
-        method: 'POST',
-        headers: { 'x-user-id': userId },
-        body: formData
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || 'Extraction Failed');
+      const res = await fetch(`${backendUrl}/profile`, { headers: { 'x-user-id': userId } });
+      if (res.ok) {
+        const data = await res.json();
+        setHasProfile(data.completed_onboarding);
       }
-      const data = await res.json();
-      setProfile(data);
-      setOnboarding(false);
-      setStatus('Profile Compiled');
-    } catch (err: any) {
-      setStatus(`Error: ${err.message}`);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      setHasProfile(false);
     }
-  };
+  }
+
+  const handleQuestionnaireComplete = () => {
+    setShowQuestionnaire(false);
+    setHasProfile(true);
+    setStatus('Profile complete! Ready to fill applications.');
+  }
 
   const scanForm = async () => {
-    setStatus('Scanning Interface...')
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (tab.id) {
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
+    setFields([]);
+    setStatus('Scanning page...');
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id) return;
+
+      // Use scripting.executeScript to run the scan in ALL frames at once.
+      // This is more robust for cross-origin frames than manual messaging.
+      const scanResults = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
         func: () => {
-          const jobTitle = document.querySelector('h1, h2')?.textContent?.trim() || document.title;
-          const companyName =
-            (document.querySelector('meta[property="og:site_name"]') as HTMLMetaElement)?.content ||
-            document.querySelector('.company-name, .employer-name')?.textContent?.trim() ||
-            window.location.hostname.replace('www.', '').split('.')[0].toUpperCase();
-          return { jobTitle, companyName };
+          // Inner function to find labels (simplified version of content script logic)
+          const findLabel = (input: HTMLElement) => {
+            const ariaLabel = input.getAttribute('aria-label');
+            if (ariaLabel) return ariaLabel;
+
+            const labelledBy = input.getAttribute('aria-labelledby');
+            if (labelledBy) {
+              const labels = labelledBy.split(' ').map(id => document.getElementById(id)?.innerText).filter(Boolean);
+              if (labels.length > 0) return labels.join(' ').trim();
+            }
+
+            if (input.id) {
+              const labelEl = document.querySelector(`label[for="${input.id}"]`) as HTMLElement;
+              if (labelEl) return labelEl.innerText.trim();
+            }
+            const nestedLabel = input.closest('label');
+            if (nestedLabel) return nestedLabel.innerText.trim();
+
+            const parent = input.parentElement;
+            if (parent && parent.innerText.length > 5 && parent.innerText.length < 200) {
+              return parent.innerText.split('\n')[0].trim();
+            }
+            return "";
+          };
+
+          const selectors = ['input:not([type="hidden"]):not([type="submit"]):not([type="button"])', 'textarea', 'select'];
+          const elements = Array.from(document.querySelectorAll(selectors.join(',')));
+
+          return elements.map(el => {
+            const input = el as HTMLInputElement;
+            const parent = input.closest('div, section, .form-group, .field, fieldset') as HTMLElement;
+            return {
+              id: input.id || input.getAttribute('name') || 'gen_' + Math.random().toString(36).substr(2, 5),
+              name: input.getAttribute('name') || "",
+              label: findLabel(input),
+              placeholder: input.placeholder || "",
+              type: input.type || 'text',
+              context: parent?.innerText?.substring(0, 500).replace(/\s+/g, ' ').trim() || "",
+              options: input.tagName === 'SELECT' ? Array.from((el as HTMLSelectElement).options).map(o => o.text) : []
+            };
+          }).filter(f => f.label || f.placeholder || f.context.length > 10);
         }
-      }, (results) => {
-        const context = results?.[0]?.result as any;
-        chrome.tabs.sendMessage(tab.id!, { action: 'SCAN_FORM' }, (response: any) => {
-          if (response?.fields) {
-            setFields(response.fields.map((f: any) => ({ ...f, ...context })));
-            setStatus(`Identified ${response.fields.length} Fields`);
-          }
-        });
       });
+
+      // Get metadata from main frame
+      const meta = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => ({
+          company: document.querySelector('.company-name, [class*="company"]')?.textContent?.trim() || window.location.hostname,
+          job: document.querySelector('h1, h2')?.textContent?.trim() || document.title
+        })
+      });
+
+      const companyName = (meta[0].result as any)?.company || "Unknown";
+      const jobTitle = (meta[0].result as any)?.job || "Role";
+
+      const allFields = scanResults
+        .flatMap(r => r.result as any[])
+        .map(f => ({ ...f, companyName, jobTitle }));
+
+      // De-duplicate fields by label/context to handle overlap
+      const uniqueFields = allFields.filter((f, index, self) =>
+        index === self.findIndex((t) => t.label === f.label && t.type === f.type)
+      );
+
+      setFields(uniqueFields);
+      setStatus(`Detected ${uniqueFields.length} fields`);
+    } catch (error: any) {
+      console.error(error);
+      setStatus('Scan failed: ' + error.message);
     }
   }
 
   const autoFill = async () => {
-    if (!userId || fields.length === 0) return;
+    if (fields.length === 0) return;
     setLoading(true);
-    setStatus('Generating Responses...');
+    setStatus('Matching your data...');
 
     try {
-      const response = await fetch(`${backendUrl}/autofill`, {
+      const res = await fetch(`${backendUrl}/autofill`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId
-        },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
         body: JSON.stringify({
-          fields: fields,
-          company_name: fields[0]?.companyName || '',
-          job_title: fields[0]?.jobTitle || ''
-        }),
+          fields,
+          company_name: fields[0]?.companyName || "Unknown",
+          job_title: fields[0]?.jobTitle || "Role"
+        })
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'AI Failed');
+      if (!res.ok) {
+        const errData = await res.json();
+        const detail = errData.detail;
+        const msg = Array.isArray(detail)
+          ? detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(', ')
+          : (typeof detail === 'object' ? JSON.stringify(detail) : detail);
+        throw new Error(msg || 'Failed to match fields');
       }
 
-      const data = await response.json();
+      const { mappings, missing_fields } = await res.json();
+
+      if (missing_fields && missing_fields.length > 0 && Object.keys(mappings).length === 0) {
+        setStatus(`Could not match any fields. Try updating your profile.`);
+        return;
+      }
+
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, { action: 'FILL_FORM', data }, (res: any) => {
-          if (res?.success) setStatus('Autofill Applied');
-        });
+      if (!tab?.id) return;
+
+      // Use scripting.executeScript to fill ALL frames.
+      const fillResults = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        args: [mappings],
+        func: (data: Record<string, any>) => {
+          let count = 0;
+
+          // Re-use findLabel helper for identification
+          const findLabel = (input: HTMLElement) => {
+            return input.getAttribute('aria-label') ||
+              (document.querySelector(`label[for="${input.id}"]`) as HTMLElement)?.innerText ||
+              input.closest('label')?.innerText || "";
+          };
+
+          for (const [id, value] of Object.entries(data)) {
+            const input = document.getElementById(id) ||
+              document.getElementsByName(id)[0] ||
+              document.querySelector(`[name="${id}"], [id="${id}"]`);
+
+            if (!input) continue;
+            const valStr = String(value).toLowerCase();
+
+            try {
+              if (input instanceof HTMLSelectElement) {
+                const option = Array.from(input.options).find(o =>
+                  o.text.toLowerCase().includes(valStr) || o.value.toLowerCase().includes(valStr)
+                );
+                if (option) {
+                  input.value = option.value;
+                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                  count++;
+                }
+              }
+              else if (input instanceof HTMLInputElement && input.type === 'radio') {
+                const group = document.querySelectorAll(`input[name="${input.name}"]`);
+                group.forEach(r => {
+                  const radio = r as HTMLInputElement;
+                  const labelText = findLabel(radio).toLowerCase();
+                  if (labelText.includes(valStr) || radio.value.toLowerCase() === valStr) {
+                    radio.click();
+                    radio.dispatchEvent(new Event('change', { bubbles: true }));
+                    count++;
+                  }
+                });
+              }
+              else {
+                const el = input as HTMLInputElement;
+                el.focus();
+                el.value = value as string;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('blur', { bubbles: true }));
+                count++;
+              }
+            } catch (e) { console.error(`JobFill: Error`, e); }
+          }
+          return count;
+        }
+      });
+
+      const totalFilled = fillResults.reduce((acc, curr) => acc + (curr.result as number || 0), 0);
+
+      if (totalFilled > 0) {
+        setStatus(`✓ Successfully filled ${totalFilled} fields!`);
+      } else {
+        setStatus('No matching fields found');
       }
     } catch (error: any) {
+      console.error(error);
       setStatus(`Error: ${error.message}`);
-    } finally {
-      setLoading(false);
     }
+    finally { setLoading(false); }
   }
 
-  if (onboarding) {
-    return (
-      <div className="container center">
-        <h1>Welcome</h1>
-        <p className="status">Upload your CV to initialize your professional profile. Our system will extract and structure your credentials.</p>
-        <div className="card">
-          <label className="file-upload-fancy">
-            {loading ? 'Processing Document...' : 'Select PDF Resume'}
-            <input type="file" onChange={handleCvUpload} hidden accept=".pdf" disabled={loading} />
-          </label>
-        </div>
-        {loading && <div className="loader-orbit"></div>}
-      </div>
-    );
+  if (showQuestionnaire) {
+    return <Questionnaire userId={userId} onComplete={handleQuestionnaireComplete} backendUrl={backendUrl} />;
   }
 
   return (
     <div className="container">
       <h1>JobFill Pro</h1>
-      <div className="profile-badge">
-        <span>User: {profile?.full_name?.split(' ')[0]}</span>
-        <button className="text-btn" onClick={() => setOnboarding(true)}>Re-upload</button>
-      </div>
+
+      {!hasProfile && (
+        <div className="warning-banner">
+          ⚠️ Profile not complete. Click "Setup Profile" to get started.
+        </div>
+      )}
 
       <div className="card">
-        <button className="secondary" onClick={scanForm}>Scan Page</button>
-        <button onClick={autoFill} disabled={loading || fields.length === 0}>
-          {loading ? 'AI Dispatching...' : 'Auto Fill Application'}
+        <button className="secondary" onClick={scanForm}>
+          Scan Application
+        </button>
+        <button onClick={autoFill} disabled={loading || fields.length === 0 || !hasProfile}>
+          {loading ? 'Filling...' : 'Fill Application'}
         </button>
       </div>
 
       <p className="status">{status}</p>
 
-      {fields.length > 0 && (
-        <div className="field-list">
-          <div className="target-info">Entity: <strong>{fields[0].companyName}</strong></div>
-          <ul>
-            {fields.slice(0, 3).map((f, i) => (
-              <li key={i}>{f.label || f.name}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div className="actions">
+        <button className="text-btn" onClick={() => setShowQuestionnaire(true)}>
+          {hasProfile ? '✏️ Edit Profile' : '📝 Setup Profile'}
+        </button>
+      </div>
     </div>
   )
 }
