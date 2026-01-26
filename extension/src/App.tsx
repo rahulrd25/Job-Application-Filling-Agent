@@ -18,7 +18,7 @@ function App() {
   const [fields, setFields] = useState<FormField[]>([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('Ready to fill applications')
-  const [backendUrl] = useState('http://localhost:8000')
+  const [backendUrl] = useState(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000')
   const [showQuestionnaire, setShowQuestionnaire] = useState(false)
   const [hasProfile, setHasProfile] = useState(false)
   const [userId] = useState<string>(() => {

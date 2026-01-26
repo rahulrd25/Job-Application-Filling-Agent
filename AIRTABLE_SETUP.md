@@ -1,98 +1,44 @@
-# Airtable Table Setup Guide
+# Airtable Configuration
 
-## Required Columns for `jobfilling_Data` Table
+The system relies on an Airtable base for persistent user profile storage. This document outlines the required schema for the `jobfilling_Data` table.
 
-Your Airtable table needs exactly **5 columns** with these exact names:
+## Schema Definition
 
-### Column Configuration
+Ensure the table contains exactly the following 5 columns with the specified types.
 
-| Column Name | Field Type | Description | Example Value |
-|-------------|-----------|-------------|---------------|
-| `user_id` | Single line text | Unique identifier for each user | `user_abc123xyz` |
-| `category` | Single select | Question category for organization | `personal`, `professional_links`, `education`, etc. |
-| `question_key` | Single line text | Normalized key for the question | `first_name`, `email`, `linkedin_url` |
-| `question_text` | Long text | Human-readable question | "What is your first name?" |
-| `answer` | Long text | User's answer to the question | "Rahul" |
+| Column Name     | Type         | Description                                      |
+|-----------------|--------------|--------------------------------------------------|
+| `user_id`       | Single line text | Unique identifier for the user session.          |
+| `category`      | Single select | Data category (e.g., `personal`, `education`).   |
+| `question_key`  | Single line text | The normalized ID used by the matcher.           |
+| `question_text` | Long text    | The label/prompt displayed in the UI.            |
+| `answer`        | Long text    | The user's input content.                        |
 
----
+## Configuration Steps
 
-## Step-by-Step Setup in Airtable
+1.  **Select Column Options**: Configure the `category` Single select column with the following options to match the backend constants:
+    *   `personal`
+    *   `professional_links`
+    *   `education`
+    *   `work_history`
+    *   `logistics`
+    *   `legal`
+    *   `screening`
+    *   `self_id`
+    *   `accessibility`
+    *   `pitch`
 
-### 1. Open Your Airtable Base
-- Go to: https://airtable.com/
-- Open base ID: `appfK3SuGXpPVsZMI`
-- Open table: `jobfilling_Data`
+2.  **Verify Keys**: Ensure `question_key` values use snake_case (e.g., `first_name`, `linkedin_url`) as the backend matcher relies on exact string equality.
 
-### 2. Add/Rename Columns
+## Verification
 
-Click the **+** button or rename existing columns to create these 5 columns:
-
-#### Column 1: `user_id`
-- **Type**: Single line text
-- **Purpose**: Identifies which user this answer belongs to
-- Click column header → "Customize field type" → "Single line text"
-
-#### Column 2: `category`
-- **Type**: Single select
-- **Purpose**: Groups questions by category
-- Click column header → "Customize field type" → "Single select"
-- Add these options:
-  - `personal`
-  - `professional_links`
-  - `education`
-  - `work_history`
-  - `logistics`
-  - `legal`
-  - `screening`
-  - `self_id`
-  - `accessibility`
-
-#### Column 3: `question_key`
-- **Type**: Single line text
-- **Purpose**: Unique identifier for each question (e.g., `first_name`, `email`)
-
-#### Column 4: `question_text`
-- **Type**: Long text
-- **Purpose**: The actual question asked to the user
-
-#### Column 5: `answer`
-- **Type**: Long text
-- **Purpose**: User's answer to the question
-
----
-
-## Example Data After Setup
-
-| user_id | category | question_key | question_text | answer |
-|---------|----------|--------------|---------------|--------|
-| user_abc123 | personal | first_name | What is your first name? | Rahul |
-| user_abc123 | personal | last_name | What is your last name? | Dhanawade |
-| user_abc123 | personal | email | What is your email address? | rahul@example.com |
-| user_abc123 | professional_links | linkedin_url | What is your LinkedIn profile URL? | https://linkedin.com/in/rahul |
-
----
-
-## Quick Reference: Required Column Names
-
-```
-user_id
-category
-question_key
-question_text
-answer
-```
-
----
-
-## Testing the Connection
-
-After setting up columns, test the backend:
+Validate the configuration by running a health check against the local API:
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Expected response:
+**Success Response:**
 ```json
 {
   "status": "healthy",
@@ -100,13 +46,3 @@ Expected response:
   "connection": "ok"
 }
 ```
-
-Test saving data:
-```bash
-curl -X POST http://localhost:8000/save-answer \
-  -H "Content-Type: application/json" \
-  -H "x-user-id: test_user_123" \
-  -d '{"question_key": "first_name", "answer": "Rahul"}'
-```
-
-Then check your Airtable table - you should see the new record!
