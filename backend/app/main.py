@@ -26,6 +26,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global Exception Handler for improved debugging
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_msg = "".join(traceback.format_exception(None, exc, exc.__traceback__))
+    print(f"CRITICAL ERROR: {error_msg}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "trace": str(exc)},
+    )
+
 # ===== MODELS =====
 
 class FormField(BaseModel):

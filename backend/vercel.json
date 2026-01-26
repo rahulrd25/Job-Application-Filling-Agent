@@ -1,4 +1,13 @@
 {
+    "builds": [
+        {
+            "src": "api/index.py",
+            "use": "@vercel/python",
+            "config": {
+                "pythonVersion": "3.13"
+            }
+        }
+    ],
     "rewrites": [
         {
             "source": "/(.*)",
