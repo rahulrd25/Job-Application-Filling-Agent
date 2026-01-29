@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from dotenv import load_dotenv
+from fastapi import Depends
 
 from .airtable_client import AirtableClient
 from .matcher import FieldMatcher
@@ -16,7 +17,34 @@ from .intelligence import IntelligenceAgent
 from .questions import QUESTION_CATALOG, get_questions_by_category, get_question_by_key
 
 load_dotenv()
+API_KEY = os.getenv("JOBFILL_API_KEY", "")
+API_KEY_HEADER = "x-jobfill-api-key"
 
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 60     # requests per window
+_rate_store: Dict[str, Dict[str, float]] = {}  # {api_key: {"count": int, "reset": timestamp}}
+
+def _check_rate_limit(key: str):
+    now = time.time()
+    info = _rate_store.get(key)
+    if not info or now > info["reset"]:
+        _rate_store[key] = {"count": 1, "reset": now + RATE_LIMIT_WINDOW}
+        return
+    info["count"] += 1
+    if info["count"] > RATE_LIMIT_MAX:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+async def verify_api_key(x_jobfill_api_key: str = Header(...)):
+    if not API_KEY:
+        raise HTTPException(status_code=500, detail="Server API key not configured")
+    if x_jobfill_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    _check_rate_limit(x_jobfill_api_key)
+    return True
+
+
+
+#creating fastapi app
 app = FastAPI(title="JobFill Pro API - Pure Matching Edition")
 
 app.add_middleware(
@@ -78,7 +106,7 @@ async def root():
     }
 
 
-@app.get("/questions")
+@app.get("/questions", dependencies=[Depends(verify_api_key)])
 async def get_questions():
     """
     Get all available questions organized by category.
@@ -99,7 +127,7 @@ async def get_questions_for_category(category: str):
     return questions_by_cat[category]
 
 
-@app.get("/profile")
+@app.get("/profile", dependencies=[Depends(verify_api_key)])
 async def get_profile(x_user_id: str = Header(...)):
     """
     Get user's stored answers from Airtable.
@@ -120,7 +148,7 @@ async def get_profile(x_user_id: str = Header(...)):
         raise HTTPException(500, f"Failed to retrieve profile: {str(e)}")
 
 
-@app.post("/save-answer")
+@app.post("/save-answer", dependencies=[Depends(verify_api_key)])
 async def save_single_answer(request: SaveAnswerRequest, x_user_id: str = Header(...)):
     """
     Save a single answer to Airtable.
@@ -145,7 +173,7 @@ async def save_single_answer(request: SaveAnswerRequest, x_user_id: str = Header
         raise HTTPException(500, f"Failed to save answer: {str(e)}")
 
 
-@app.post("/save-answers")
+@app.post("/save-answers", dependencies=[Depends(verify_api_key)])
 async def save_multiple_answers(request: SaveMultipleAnswersRequest, x_user_id: str = Header(...)):
     """
     Save multiple answers at once (for bulk onboarding).
@@ -174,7 +202,7 @@ async def save_multiple_answers(request: SaveMultipleAnswersRequest, x_user_id: 
         raise HTTPException(500, f"Failed to save answers: {str(e)}")
 
 
-@app.post("/autofill")
+@app.post("/autofill", dependencies=[Depends(verify_api_key)])
 async def autofill_form(request: AutofillRequest, x_user_id: str = Header(...)):
     """
     Pure matching-based autofill.
@@ -247,7 +275,7 @@ async def autofill_form(request: AutofillRequest, x_user_id: str = Header(...)):
         return {"mappings": {}, "missing_fields": [], "error": str(e)}
 
 
-@app.delete("/profile")
+@app.delete("/profile", dependencies=[Depends(verify_api_key)])
 async def delete_profile(x_user_id: str = Header(...)):
     """
     Delete all user data from Airtable (for testing/reset).
@@ -260,7 +288,7 @@ async def delete_profile(x_user_id: str = Header(...)):
         raise HTTPException(500, f"Failed to delete profile: {str(e)}")
 
 
-@app.get("/health")
+@app.get("/health", dependencies=[Depends(verify_api_key)])
 async def health_check():
     """Health check endpoint"""
     try:

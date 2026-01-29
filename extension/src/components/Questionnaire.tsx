@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import './Questionnaire.css';
 
+const JOBFILL_API_KEY = import.meta.env.VITE_JOBFILL_API_KEY;
+
 interface Question {
     key: string;
     category: string;
@@ -53,7 +55,13 @@ export default function Questionnaire({ userId, onComplete, backendUrl }: Questi
 
     const fetchQuestions = async () => {
         try {
-            const res = await fetch(`${backendUrl}/questions`);
+            const res = await fetch(`${backendUrl}/questions`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-jobfill-api-key': JOBFILL_API_KEY,
+                },
+            });
             const data = await res.json();
             setCategories(data.categories);
             setLoading(false);
@@ -93,7 +101,8 @@ export default function Questionnaire({ userId, onComplete, backendUrl }: Questi
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-user-id': userId
+                    'x-user-id': userId,
+                    'x-jobfill-api-key': JOBFILL_API_KEY,
                 },
                 body: JSON.stringify({ answers: answersToSave })
             });
